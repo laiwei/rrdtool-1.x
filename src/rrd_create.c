@@ -4,6 +4,7 @@
  * rrd_create.c  creates new rrds
  *****************************************************************************/
 
+#include <libgen.h>
 #include <stdlib.h>
 #include <time.h>
 #include <locale.h>
@@ -709,6 +710,7 @@ int rrd_create_fn(
     rrd_file_t *rrd_file_dn;
     rrd_t     rrd_dn;
     unsigned  rrd_flags = RRD_READWRITE | RRD_CREAT;
+    char *file_copy, *dir_name;
 
     if (opt_no_overwrite) {
       rrd_flags |= RRD_EXCL ;
@@ -717,6 +719,24 @@ int rrd_create_fn(
     unkn_cnt = 0;
     for (i = 0; i < rrd->stat_head->rra_cnt; i++)
         unkn_cnt += rrd->stat_head->ds_cnt * rrd->rra_def[i].row_cnt;
+
+    file_copy = strdup(file_name);
+    if (file_copy == NULL)
+    {
+      fprintf(stderr, "rrd_create: strdup(): '%s', %s\n",
+          file_name, rrd_strerror(errno));
+      return -1;
+    }
+
+    dir_name = dirname(file_copy);
+    if (rrd_mkdir_p(dir_name, 0755) != 0)
+    {
+      fprintf(stderr, "rrd_create: Failed to create directory '%s': %s\n",
+          dir_name, rrd_strerror(errno));
+      return -1;
+    }
+
+    free(file_copy);
 
     if ((rrd_file_dn = rrd_open(file_name, rrd, rrd_flags)) == NULL) {
         rrd_set_error("creating '%s': %s", file_name, rrd_strerror(errno));
